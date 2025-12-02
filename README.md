@@ -48,41 +48,56 @@ pip install pyyaml psutil
 
 ## Usage
 
+Procwatch has two main commands: `scan` and `train`.
+
+### Scanning
+
 Basic scan (single run):
 
 ```bash
-python3 procwatch.py
+python3 procwatch.py scan
 ```
 
 Continuous monitoring every 10s:
 
 ```bash
-python3 procwatch.py --interval 10
+python3 procwatch.py scan --interval 10
 ```
 
-Kill flagged processes:
+Kill flagged processes (score >= `min_score`):
 
 ```bash
-python3 procwatch.py --kill-on-alert
+python3 procwatch.py scan --kill-on-alert
 ```
 
 Dump artifacts of flagged processes:
 
 ```bash
-python3 procwatch.py --dump
+python3 procwatch.py scan --dump /path/to/dump/dir
 ```
 
 Combine options:
 
 ```bash
-python3 procwatch.py --interval 5 --dump --kill-on-alert
+python3 procwatch.py scan --interval 5 --dump /path/to/dump/dir --kill-on-alert
 ```
+
+### Training
+
+You can train a baseline model to detect anomalies.
+
+```bash
+python3 procwatch.py train --duration 120
+```
+This will create a model file at `~/.local/share/procwatch/model.json`.
 
 ## Config Example (`~/.procwatch.yaml`)
 
 ```yaml
-scan_interval: 10
-cpu_threshold: 50.0
+cpu_high: 75.0
+min_score: 3.0
+ml_weight: 2.0
+ports: "80,443"
 weights:
   deleted_exe: 5
   tmp_exe: 4
