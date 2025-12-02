@@ -27,6 +27,47 @@ In `scan` mode, `procwatch` performs the following steps:
 In `train` mode, `procwatch` collects feature data from all running processes for a specified duration. It then uses this data to train a baseline model for anomaly detection. This model can then be used in `scan` mode to improve the detection of suspicious processes. Two types of models are supported: a simple `ZScoreModel` and a more advanced `IsolationForestModel` from `scikit-learn`.
 
 ---
+## Structure
+
+The project is organized into the following directory structure:
+
+```
+.
+├── procwatch.py
+├── procwatch/
+│   ├── __init__.py
+│   ├── cli.py
+│   ├── config.py
+│   ├── features.py
+│   ├── heuristics.py
+│   ├── ml.py
+│   ├── models.py
+│   ├── network.py
+│   ├── proc.py
+│   ├── utils.py
+│   └── whitelist.py
+├── README.md
+└── GUIDE.md
+```
+
+*   **`procwatch.py`**: The main entry point for the command-line tool.
+*   **`procwatch/`**: This directory contains the core logic of the application.
+    *   **`__init__.py`**: Initializes the `procwatch` package.
+    *   **`cli.py`**: Defines the command-line interface and its arguments.
+    *   **`config.py`**: Manages the loading of the configuration from the YAML file.
+    *   **`features.py`**: Contains the logic for extracting features from processes for the machine learning model.
+    *   **`heuristics.py`**: Defines the heuristics used to score processes for suspicious activity.
+    *   **`ml.py`**: Contains the logic for training and using the machine learning models.
+    *   **`models.py`**: Defines the data models used in the application.
+    *   **`network.py`**: Contains the logic for analyzing network connections.
+    *   **`proc.py`**: Contains the logic for interacting with the `/proc` filesystem.
+    *   **`utils.py`**: Contains utility functions used throughout the application.
+    *   **`whitelist.py`**: Contains the logic for whitelisting processes.
+*   **`README.md`**: A brief overview of the project.
+*   **`GUIDE.md`**: A detailed guide to the project.
+
+---
+
 
 ## Features
 
@@ -88,7 +129,7 @@ Procwatch is a command-line tool with two main subcommands: `scan` and `train`.
 The `scan` command is used to scan the system for suspicious processes.
 
 ```bash
-python3 procwatch.py scan [OPTIONS]
+procwatch scan [OPTIONS]
 ```
 
 **Options:**
@@ -105,22 +146,22 @@ python3 procwatch.py scan [OPTIONS]
 
 Run a single scan:
 ```bash
-python3 procwatch.py scan
+procwatch scan
 ```
 
 Run a continuous scan every 10 seconds:
 ```bash
-python3 procwatch.py scan --interval 10
+procwatch scan --interval 10
 ```
 
 Kill any suspicious processes found:
 ```bash
-python3 procwatch.py scan --kill-on-alert
+procwatch scan --kill-on-alert
 ```
 
 Dump artifacts of suspicious processes to `/tmp/procwatch_dumps`:
 ```bash
-python3 procwatch.py scan --dump /tmp/procwatch_dumps
+procwatch scan --dump /tmp/procwatch_dumps
 ```
 
 ### `train`
@@ -128,7 +169,7 @@ python3 procwatch.py scan --dump /tmp/procwatch_dumps
 The `train` command is used to create a baseline model for the machine learning-based detection.
 
 ```bash
-python3 procwatch.py train [OPTIONS]
+procwatch train [OPTIONS]
 ```
 
 **Options:**
@@ -142,7 +183,7 @@ python3 procwatch.py train [OPTIONS]
 
 Train a model for 120 seconds:
 ```bash
-python3 procwatch.py train --duration 120
+procwatch train --duration 120
 ```
 
 ---
@@ -166,7 +207,7 @@ weights:
     tmp_exe: 3
     world_writable_exe: 2
     wx_mem: 3
-    empty_cmdline: 2
+    empty_cmdline: 1
     short_cmdline: 1
     obfuscated_cmdline: 2
     code_exec_cmdline: 1
@@ -182,7 +223,7 @@ weights:
 whitelist:
     names: ["systemd", "kthreadd", "kworker", "sshd", "cron", "bash", "NetworkManager", "journald"]
     users: ["root"]
-    patterns: ["/usr/*", "/bin/*", "/sbin/*", "(sd-pam)"]
+    patterns: ["/usr/*", "/bin/*", "/sbin/*", "(sd-pam)", "kworker*", "ksoftirqd*", "rcu*", "migration*", "idle_inject*", "cpuhp*", "pool_workqueue_release*", "systemd-userwor*", "dbus-broker-lau*", "systemd-timesyn*", "systemd-resolve*", "systemd-journal*"]
     hashes: []
     paths: []
 ```

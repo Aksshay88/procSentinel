@@ -4,6 +4,7 @@ Procwatch is a lightweight Linux process monitoring tool designed to flag suspic
 
 ## Features
 
+* **ML-assisted Anomaly Scoring**: Uses a trained model to calculate an anomaly score for each process.
 * **Heuristics-based Detection**:
 
   * Deleted executables still running
@@ -40,11 +41,16 @@ Procwatch is a lightweight Linux process monitoring tool designed to flag suspic
 
 ## Installation
 
-Clone the repo and install dependencies:
+Clone the repo and install the package:
 
 ```bash
-pip install pyyaml psutil
+git clone https://github.com/Ren-Gen22/procSentinel.git
+cd procSentinel
+pip install .
 ```
+
+This will install the `procwatch` command-line tool.
+
 
 ## Usage
 
@@ -55,31 +61,31 @@ Procwatch has two main commands: `scan` and `train`.
 Basic scan (single run):
 
 ```bash
-python3 procwatch.py scan
+procwatch scan
 ```
 
 Continuous monitoring every 10s:
 
 ```bash
-python3 procwatch.py scan --interval 10
+procwatch scan --interval 10
 ```
 
 Kill flagged processes (score >= `min_score`):
 
 ```bash
-python3 procwatch.py scan --kill-on-alert
+procwatch scan --kill-on-alert
 ```
 
 Dump artifacts of flagged processes:
 
 ```bash
-python3 procwatch.py scan --dump /path/to/dump/dir
+procwatch scan --dump /path/to/dump/dir
 ```
 
 Combine options:
 
 ```bash
-python3 procwatch.py scan --interval 5 --dump /path/to/dump/dir --kill-on-alert
+procwatch scan --interval 5 --dump /path/to/dump/dir --kill-on-alert
 ```
 
 ### Training
@@ -87,7 +93,7 @@ python3 procwatch.py scan --interval 5 --dump /path/to/dump/dir --kill-on-alert
 You can train a baseline model to detect anomalies.
 
 ```bash
-python3 procwatch.py train --duration 120
+procwatch train --duration 120
 ```
 This will create a model file at `~/.local/share/procwatch/model.json`.
 
@@ -116,7 +122,6 @@ whitelist:
 ## Roadmap
 
 * Add JSONL logging for structured alerts
-* Add ML-assisted anomaly scoring
 * Expand heuristics (fileless execution, privilege escalation attempts)
 * Systemd integration for persistent monitoring
 
