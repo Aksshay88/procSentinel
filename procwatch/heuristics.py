@@ -35,8 +35,15 @@ class HeuristicScorer:
     def _check_executable(self, proc: ProcInfo, reasons: List[Suspicion]):
         exe = proc.exe or ""
         cwd = proc.cwd or ""
+        # Skip kernel threads (ppid=2 is kthreadd) - they legitimately have no exe
+        is_kernel_thread = (proc.ppid == 2) or (not exe and proc.ppid in (0, 1, 2))
+        # Also skip if we likely couldn't read due to permissions and process has valid cmdline
+        has_cmdline = bool(proc.cmdline)
+        
         if not exe:
-            reasons.append(Suspicion(self.weights.get("no_exe", 1), "No executable path found"))
+            # Only flag if not a kernel thread AND either has no cmdline or is suspicious in other ways
+            if not is_kernel_thread and not has_cmdline:
+                reasons.append(Suspicion(self.weights.get("no_exe", 1), "No executable path found"))
         elif exe.endswith(" (deleted)"):
             reasons.append(Suspicion(self.weights.get("deleted_exe", 4), "Executable deleted while running"))
         elif exe.startswith("/memfd:"):
@@ -51,7 +58,10 @@ class HeuristicScorer:
             if exe and not exe.endswith(" (deleted)"):
                 st = os.stat(exe)
                 if bool(st.st_mode & stat.S_IWOTH):
-                    reasons.append(Suspicion(self.weights.get("world_writable_exe", 2), "Executable is world-writable"))
+                    # World-writable is concerning, but less so in certain trusted paths
+                    is_trusted_path = exe.startswith(("/usr/", "/bin/", "/sbin/", "/opt/"))
+                    weight = 1 if is_trusted_path else self.weights.get("world_writable_exe", 2)
+                    reasons.append(Suspicion(weight, "Executable is world-writable"))
         except Exception:
             pass
 
@@ -66,9 +76,13 @@ class HeuristicScorer:
     def _check_cmdline(self, proc: ProcInfo, reasons: List[Suspicion]):
         cmdline = proc.cmdline or []
         cmd_str = " ".join(cmdline)
+        # Kernel threads legitimately have empty cmdline
+        is_kernel_thread = (proc.ppid == 2) or (not proc.exe and proc.ppid in (0, 1, 2))
+        
         if not cmdline:
-            reasons.append(Suspicion(self.weights.get("empty_cmdline", 2), "Empty cmdline"))
-        elif len(cmd_str) < 4:
+            if not is_kernel_thread:
+                reasons.append(Suspicion(self.weights.get("empty_cmdline", 2), "Empty cmdline"))
+        elif len(cmd_str) < 4 and proc.exe:  # Only flag short cmdline if there's an exe path
             reasons.append(Suspicion(self.weights.get("short_cmdline", 1), "Very short cmdline"))
 
         if "base64" in cmd_str and len(cmd_str) > 100:
@@ -77,10 +91,20 @@ class HeuristicScorer:
             reasons.append(Suspicion(self.weights.get("code_exec_cmdline", 1), "Possible code execution primitive in cmdline"))
 
         name = proc.name
-        if cmdline:
+        if cmdline and name:
             argv0 = os.path.basename(cmdline[0])
-            if name and argv0 and name != argv0 and not argv0.startswith(f"({name})"):
-                reasons.append(Suspicion(self.weights.get("name_argv_mismatch", 1), f"Name/argv mismatch: {name} != {argv0}"))
+            # Check for mismatch, but be lenient with truncated names
+            # Allow if name is prefix/suffix of argv0 or vice versa (for truncation)
+            # Also allow wrapped processes like (sd-pam)
+            if argv0 and name != argv0 and not argv0.startswith(f"({name})"):
+                # Check if one is a truncated version of the other
+                is_truncated = (name in argv0) or (argv0 in name) or \
+                              (name.startswith(argv0[:10]) if len(argv0) >= 10 else False) or \
+                              (argv0.startswith(name[:10]) if len(name) >= 10 else False)
+                # Also check for common legitimate renames: "php-fpm: pool", "nginx: worker", etc.
+                is_legitimate_rename = ":" in argv0 and argv0.split(":")[0].strip() in name
+                if not is_truncated and not is_legitimate_rename:
+                    reasons.append(Suspicion(self.weights.get("name_argv_mismatch", 1), f"Name/argv mismatch: {name} != {argv0}"))
 
     def _check_parent(self, proc: ProcInfo, all_procs: Dict[int, ProcInfo], reasons: List[Suspicion]):
         parent = all_procs.get(proc.ppid)

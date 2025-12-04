@@ -10,7 +10,7 @@ except ImportError:
     HAVE_YAML = False
 
 DEFAULT_CONFIG: Dict[str, Any] = {
-    "min_score": 2,
+    "min_score": 3,
     "cpu_high": 90.0,
     "ports": "3333,4444,5555,6666,7777,14444,33333",
     "topk": 20,
@@ -37,9 +37,9 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "no_exe": 1,
     },
     "whitelist": {
-        "names": ["systemd", "kthreadd", "kworker", "sshd", "cron", "bash", "NetworkManager", "journald"],
+        "names": ["systemd", "kthreadd", "kworker", "sshd", "cron", "bash", "NetworkManager", "journald", "kdevtmpfs", "kauditd", "khungtaskd", "oom_reaper", "kcompactd0", "ksmd", "khugepaged", "watchdogd", "kswapd0", "ecryptfs-kthread", "scsi_eh_*", "hv_balloon", "jbd2/*"],
         "users": ["root"],
-        "patterns": ["/usr/*", "/bin/*", "/sbin/*", "(sd-pam)", "kworker*", "ksoftirqd*", "rcu*", "migration*", "idle_inject*", "cpuhp*", "pool_workqueue_release*", "systemd-userwor*", "dbus-broker-lau*", "systemd-timesyn*", "systemd-resolve*", "systemd-journal*"],
+        "patterns": ["/usr/*", "/bin/*", "/sbin/*", "(sd-pam)", "kworker*", "ksoftirqd*", "rcu*", "migration*", "idle_inject*", "cpuhp*", "pool_workqueue_release*", "systemd-userwor*", "dbus-broker-lau*", "systemd-timesyn*", "systemd-resolve*", "systemd-journal*", "irq/*", "scsi_eh_*", "scsi_tmf_*", "jbd2/*"],
         "hashes": [],
         "paths": [],
     },

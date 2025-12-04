@@ -142,9 +142,10 @@ def cmd_scan(args: argparse.Namespace) -> None:
         for pid, proc in all_procs.items():
             # heuristics
             reasons = hscorer.score_proc(proc, all_procs)
-            # apply whitelist dampening
+            # apply whitelist dampening - more aggressive reduction for whitelisted processes
             if wl.is_allowed(proc):
-                reasons = [r if r.score >= 2 else Suspicion(0, r.reason + " (whitelisted)") for r in reasons]
+                # Reduce scores for whitelisted processes - keep high-severity issues but dampen others
+                reasons = [Suspicion(max(0, r.score - 2), r.reason + " (whitelisted)") if r.score < 4 else r for r in reasons]
 
             proc.heuristic_reasons = [r for r in reasons if r.score > 0]
             proc.heuristic_score = sum(r.score for r in reasons)
