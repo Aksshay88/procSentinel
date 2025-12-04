@@ -12,7 +12,7 @@ from .config import load_config
 from .models import ProcInfo, Suspicion
 from .proc import get_proc_ids, analyze_process
 from .network import get_connections_by_inode
-from .heuristics import HeuristicScorer
+from .heuristics import HeuristicScorer, WHITELIST_SCORE_REDUCTION, WHITELIST_HIGH_SEVERITY_THRESHOLD
 from .whitelist import Whitelist
 from .features import extract_features
 from .ml import choose_model, ZScoreModel, IsolationForestModel
@@ -145,7 +145,11 @@ def cmd_scan(args: argparse.Namespace) -> None:
             # apply whitelist dampening - more aggressive reduction for whitelisted processes
             if wl.is_allowed(proc):
                 # Reduce scores for whitelisted processes - keep high-severity issues but dampen others
-                reasons = [Suspicion(max(0, r.score - 2), r.reason + " (whitelisted)") if r.score < 4 else r for r in reasons]
+                reasons = [
+                    Suspicion(max(0, r.score - WHITELIST_SCORE_REDUCTION), r.reason + " (whitelisted)") 
+                    if r.score < WHITELIST_HIGH_SEVERITY_THRESHOLD else r 
+                    for r in reasons
+                ]
 
             proc.heuristic_reasons = [r for r in reasons if r.score > 0]
             proc.heuristic_score = sum(r.score for r in reasons)

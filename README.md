@@ -119,6 +119,18 @@ whitelist:
     - "trusted_user"
 ```
 
+## Recent Improvements
+
+**v2.0 - Reduced False Detections**
+* Added intelligent kernel thread detection - no longer flags system threads
+* Improved name/argv mismatch detection to handle truncated names and setproctitle
+* Enhanced whitelist dampening with more aggressive score reduction
+* Permission-aware executable path checking
+* Increased default min_score from 2 to 3 for better signal-to-noise ratio
+* Expanded whitelist patterns for common kernel threads
+
+These improvements dramatically reduce false positives while maintaining detection of real threats like deleted executables, fileless execution, and suspicious memory regions.
+
 ## Roadmap
 
 * Add JSONL logging for structured alerts

@@ -15,11 +15,24 @@ UNUSUAL_PARENT_CHILD = {
 
 SUSP_DEFAULT_WATCH_PORTS = {3333, 4444, 5555, 6666, 7777, 14444, 33333}
 
+# Constants for detection logic
+MIN_TRUNCATION_LENGTH = 10  # Minimum length to check for name truncation
+WHITELIST_SCORE_REDUCTION = 2  # Score reduction for whitelisted low-severity issues
+WHITELIST_HIGH_SEVERITY_THRESHOLD = 4  # Issues at or above this score are not dampened
+
 class HeuristicScorer:
     def __init__(self, ports_watch: Set[int], cpu_high: float = 90.0, weights: Dict[str, int] | None = None):
         self.ports_watch = ports_watch
         self.cpu_high = cpu_high
         self.weights = weights or {}
+    
+    def _is_kernel_thread(self, proc: ProcInfo) -> bool:
+        """Check if a process is a kernel thread.
+        
+        Kernel threads typically have ppid=2 (kthreadd) or are direct children
+        of init/swapper with no executable path.
+        """
+        return (proc.ppid == 2) or (not proc.exe and proc.ppid in (0, 1, 2))
 
     def score_proc(self, proc: ProcInfo, all_procs: Dict[int, ProcInfo]) -> List[Suspicion]:
         reasons: List[Suspicion] = []
@@ -35,14 +48,11 @@ class HeuristicScorer:
     def _check_executable(self, proc: ProcInfo, reasons: List[Suspicion]):
         exe = proc.exe or ""
         cwd = proc.cwd or ""
-        # Skip kernel threads (ppid=2 is kthreadd) - they legitimately have no exe
-        is_kernel_thread = (proc.ppid == 2) or (not exe and proc.ppid in (0, 1, 2))
-        # Also skip if we likely couldn't read due to permissions and process has valid cmdline
         has_cmdline = bool(proc.cmdline)
         
         if not exe:
             # Only flag if not a kernel thread AND either has no cmdline or is suspicious in other ways
-            if not is_kernel_thread and not has_cmdline:
+            if not self._is_kernel_thread(proc) and not has_cmdline:
                 reasons.append(Suspicion(self.weights.get("no_exe", 1), "No executable path found"))
         elif exe.endswith(" (deleted)"):
             reasons.append(Suspicion(self.weights.get("deleted_exe", 4), "Executable deleted while running"))
@@ -76,11 +86,9 @@ class HeuristicScorer:
     def _check_cmdline(self, proc: ProcInfo, reasons: List[Suspicion]):
         cmdline = proc.cmdline or []
         cmd_str = " ".join(cmdline)
-        # Kernel threads legitimately have empty cmdline
-        is_kernel_thread = (proc.ppid == 2) or (not proc.exe and proc.ppid in (0, 1, 2))
         
         if not cmdline:
-            if not is_kernel_thread:
+            if not self._is_kernel_thread(proc):
                 reasons.append(Suspicion(self.weights.get("empty_cmdline", 2), "Empty cmdline"))
         elif len(cmd_str) < 4 and proc.exe:  # Only flag short cmdline if there's an exe path
             reasons.append(Suspicion(self.weights.get("short_cmdline", 1), "Very short cmdline"))
@@ -99,8 +107,8 @@ class HeuristicScorer:
             if argv0 and name != argv0 and not argv0.startswith(f"({name})"):
                 # Check if one is a truncated version of the other
                 is_truncated = (name in argv0) or (argv0 in name) or \
-                              (name.startswith(argv0[:10]) if len(argv0) >= 10 else False) or \
-                              (argv0.startswith(name[:10]) if len(name) >= 10 else False)
+                              (name.startswith(argv0[:MIN_TRUNCATION_LENGTH]) if len(argv0) >= MIN_TRUNCATION_LENGTH else False) or \
+                              (argv0.startswith(name[:MIN_TRUNCATION_LENGTH]) if len(name) >= MIN_TRUNCATION_LENGTH else False)
                 # Also check for common legitimate renames: "php-fpm: pool", "nginx: worker", etc.
                 is_legitimate_rename = ":" in argv0 and argv0.split(":")[0].strip() in name
                 if not is_truncated and not is_legitimate_rename:
