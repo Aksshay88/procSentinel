@@ -17,6 +17,7 @@ SUSP_DEFAULT_WATCH_PORTS = {3333, 4444, 5555, 6666, 7777, 14444, 33333}
 
 # Constants for detection logic
 MIN_TRUNCATION_LENGTH = 10  # Minimum length to check for name truncation
+MIN_CMDLINE_LENGTH = 4  # Minimum cmdline length before flagging as suspicious
 WHITELIST_SCORE_REDUCTION = 2  # Score reduction for whitelisted low-severity issues
 WHITELIST_HIGH_SEVERITY_THRESHOLD = 4  # Issues at or above this score are not dampened
 
@@ -90,7 +91,7 @@ class HeuristicScorer:
         if not cmdline:
             if not self._is_kernel_thread(proc):
                 reasons.append(Suspicion(self.weights.get("empty_cmdline", 2), "Empty cmdline"))
-        elif len(cmd_str) < 4 and proc.exe:  # Only flag short cmdline if there's an exe path
+        elif len(cmd_str) < MIN_CMDLINE_LENGTH and proc.exe:  # Only flag short cmdline if there's an exe path
             reasons.append(Suspicion(self.weights.get("short_cmdline", 1), "Very short cmdline"))
 
         if "base64" in cmd_str and len(cmd_str) > 100:
@@ -106,11 +107,17 @@ class HeuristicScorer:
             # Also allow wrapped processes like (sd-pam)
             if argv0 and name != argv0 and not argv0.startswith(f"({name})"):
                 # Check if one is a truncated version of the other
-                is_truncated = (name in argv0) or (argv0 in name) or \
-                              (name.startswith(argv0[:MIN_TRUNCATION_LENGTH]) if len(argv0) >= MIN_TRUNCATION_LENGTH else False) or \
-                              (argv0.startswith(name[:MIN_TRUNCATION_LENGTH]) if len(name) >= MIN_TRUNCATION_LENGTH else False)
+                name_in_argv = name in argv0
+                argv_in_name = argv0 in name
+                name_prefix_match = (name.startswith(argv0[:MIN_TRUNCATION_LENGTH]) 
+                                   if len(argv0) >= MIN_TRUNCATION_LENGTH else False)
+                argv_prefix_match = (argv0.startswith(name[:MIN_TRUNCATION_LENGTH]) 
+                                   if len(name) >= MIN_TRUNCATION_LENGTH else False)
+                is_truncated = name_in_argv or argv_in_name or name_prefix_match or argv_prefix_match
+                
                 # Also check for common legitimate renames: "php-fpm: pool", "nginx: worker", etc.
                 is_legitimate_rename = ":" in argv0 and argv0.split(":")[0].strip() in name
+                
                 if not is_truncated and not is_legitimate_rename:
                     reasons.append(Suspicion(self.weights.get("name_argv_mismatch", 1), f"Name/argv mismatch: {name} != {argv0}"))
 
