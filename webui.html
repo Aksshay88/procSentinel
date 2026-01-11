@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProcWatch - Process Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .stats-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .controls {
+            padding: 20px 30px;
+            background: white;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        input[type="number"] {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            width: 100px;
+        }
+        
+        label {
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .process-table {
+            padding: 30px;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+        
+        .score {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 4px;
+            display: inline-block;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .score-high {
+            background: #ff4757;
+            color: white;
+        }
+        
+        .score-medium {
+            background: #ffa502;
+            color: white;
+        }
+        
+        .score-low {
+            background: #2ed573;
+            color: white;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+        
+        .error {
+            background: #ff4757;
+            color: white;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .modal-content {
+            background: white;
+            max-width: 900px;
+            margin: 50px auto;
+            border-radius: 12px;
+            padding: 30px;
+            position: relative;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .detail-section {
+            margin: 20px 0;
+        }
+        
+        .detail-section h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .detail-value {
+            color: #333;
+            word-break: break-all;
+        }
+        
+        .reason-list {
+            list-style: none;
+        }
+        
+        .reason-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 ProcWatch</h1>
+            <p class="subtitle">Real-time Process Monitoring & Anomaly Detection</p>
+        </header>
+        
+        <div class="stats-panel" id="stats-panel">
+            <div class="stat-card">
+                <div class="stat-label">Total Processes</div>
+                <div class="stat-value" id="total-processes">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Suspicious</div>
+                <div class="stat-value" id="suspicious-count" style="color: #ff4757;">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Min Score</div>
+                <div class="stat-value" id="min-score">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">ML Model</div>
+                <div class="stat-value" id="ml-model" style="font-size: 1.5em;">-</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="loadAllProcesses()">🔄 All Processes</button>
+            <button onclick="loadSuspicious()">⚠️ Suspicious Only</button>
+            <label for="min-score-input">Min Score:</label>
+            <input type="number" id="min-score-input" value="3.0" step="0.5" min="0">
+            <div class="auto-refresh">
+                <label>
+                    <input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()">
+                    Auto-refresh (5s)
+                </label>
+            </div>
+        </div>
+        
+        <div class="process-table">
+            <div id="loading" class="loading">Click a button to load processes</div>
+            <div id="error" class="error" style="display: none;"></div>
+            <table id="process-table" style="display: none;">
+                <thead>
+                    <tr>
+                        <th>Score</th>
+                        <th>PID</th>
+                        <th>Name</th>
+                        <th>User</th>
+                        <th>CPU %</th>
+                        <th>Connections</th>
+                        <th>Parent</th>
+                        <th>Reasons</th>
+                    </tr>
+                </thead>
+                <tbody id="process-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div id="detail-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:8080/api';
+        let autoRefreshInterval = null;
+        
+        async function fetchAPI(endpoint) {
+            const response = await fetch(`${API_BASE}${endpoint}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return await response.json();
+        }
+        
+        function getScoreClass(score) {
+            if (score >= 6) return 'score-high';
+            if (score >= 3) return 'score-medium';
+            return 'score-low';
+        }
+        
+        async function loadStats() {
+            try {
+                const stats = await fetchAPI('/stats');
+                document.getElementById('total-processes').textContent = stats.total_processes;
+                document.getElementById('suspicious-count').textContent = stats.suspicious_count;
+                document.getElementById('min-score').textContent = stats.min_score_threshold;
+                document.getElementById('ml-model').textContent = stats.ml_model_loaded ? '✅' : '❌';
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+        
+        function renderProcesses(processes) {
+            const tbody = document.getElementById('process-tbody');
+            tbody.innerHTML = '';
+            
+            processes.forEach(proc => {
+                const row = document.createElement('tr');
+                row.onclick = () => showProcessDetail(proc.pid);
+                
+                const scoreClass = getScoreClass(proc.total_score);
+                const reasons = proc.reasons.map(r => r.reason).join(', ') || 'None';
+                
+                row.innerHTML = `
+                    <td><span class="score ${scoreClass}">${proc.total_score.toFixed(1)}</span></td>
+                    <td>${proc.pid}</td>
+                    <td>${proc.name}</td>
+                    <td>${proc.user}</td>
+                    <td>${proc.cpu_pct.toFixed(1)}%</td>
+                    <td>${proc.conns_outbound}</td>
+                    <td>${proc.parent_name}</td>
+                    <td>${reasons.substring(0, 80)}${reasons.length > 80 ? '...' : ''}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+        
+        async function loadAllProcesses() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('error').style.display = 'none';
+                document.getElementById('process-table').style.display = 'none';
+                
+                const processes = await fetchAPI('/processes');
+                await loadStats();
+                
+                renderProcesses(processes);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('process-table').style.display = 'table';
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').textContent = `Error: ${error.message}`;
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+        
+        async function loadSuspicious() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('error').style.display = 'none';
+                document.getElementById('process-table').style.display = 'none';
+                
+                const minScore = document.getElementById('min-score-input').value;
+                const processes = await fetchAPI(`/suspicious?min_score=${minScore}`);
+                await loadStats();
+                
+                renderProcesses(processes);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('process-table').style.display = 'table';
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').textContent = `Error: ${error.message}`;
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+        
+        async function showProcessDetail(pid) {
+            try {
+                const proc = await fetchAPI(`/process/${pid}`);
+                const modal = document.getElementById('detail-modal');
+                const modalBody = document.getElementById('modal-body');
+                
+                const reasonsList = proc.reasons.map(r => 
+                    `<li class="reason-item"><strong>[${r.score}]</strong> ${r.reason}</li>`
+                ).join('');
+                
+                const cmdline = proc.cmdline.join(' ') || 'N/A';
+                const remotePortsStr = proc.remote_ports.join(', ') || 'None';
+                
+                modalBody.innerHTML = `
+                    <h2>Process Details - PID ${proc.pid}</h2>
+                    
+                    <div class="detail-section">
+                        <h3>Basic Information</h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">Name:</div>
+                            <div class="detail-value">${proc.name}</div>
+                            <div class="detail-label">PID:</div>
+                            <div class="detail-value">${proc.pid}</div>
+                            <div class="detail-label">Parent PID:</div>
+                            <div class="detail-value">${proc.ppid} (${proc.parent_name})</div>
+                            <div class="detail-label">User:</div>
+                            <div class="detail-value">${proc.user}</div>
+                            <div class="detail-label">Executable:</div>
+                            <div class="detail-value">${proc.exe || 'N/A'}</div>
+                            <div class="detail-label">CWD:</div>
+                            <div class="detail-value">${proc.cwd || 'N/A'}</div>
+                            <div class="detail-label">SHA256:</div>
+                            <div class="detail-value">${proc.sha256 || 'N/A'}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>Scoring</h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">Total Score:</div>
+                            <div class="detail-value"><span class="score ${getScoreClass(proc.total_score)}">${proc.total_score.toFixed(2)}</span></div>
+                            <div class="detail-label">Heuristic Score:</div>
+                            <div class="detail-value">${proc.heuristic_score.toFixed(2)}</div>
+                            <div class="detail-label">ML Score:</div>
+                            <div class="detail-value">${proc.ml_score.toFixed(2)}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>Detection Reasons</h3>
+                        <ul class="reason-list">
+                            ${reasonsList || '<li>No suspicious indicators</li>'}
+                        </ul>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>Network</h3>
+                        <div class="detail-grid">
+                            <div class="detail-label">CPU Usage:</div>
+                            <div class="detail-value">${proc.cpu_pct.toFixed(1)}%</div>
+                            <div class="detail-label">Outbound Connections:</div>
+                            <div class="detail-value">${proc.conns_outbound}</div>
+                            <div class="detail-label">Remote Ports:</div>
+                            <div class="detail-value">${remotePortsStr}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>Command Line</h3>
+                        <div class="detail-value" style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace;">
+                            ${cmdline}
+                        </div>
+                    </div>
+                `;
+                
+                modal.style.display = 'block';
+            } catch (error) {
+                alert(`Failed to load process details: ${error.message}`);
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('detail-modal').style.display = 'none';
+        }
+        
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('auto-refresh');
+            if (checkbox.checked) {
+                autoRefreshInterval = setInterval(() => {
+                    const tbody = document.getElementById('process-tbody');
+                    if (tbody.children.length > 0) {
+                        loadSuspicious();
+                    }
+                }, 5000);
+            } else {
+                if (autoRefreshInterval) {
+                    clearInterval(autoRefreshInterval);
+                    autoRefreshInterval = null;
+                }
+            }
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('detail-modal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+        
+        // Load stats on page load
+        loadStats();
+    </script>
+</body>
+</html>

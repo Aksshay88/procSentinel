@@ -1,0 +1,256 @@
+# ProcWatch Configuration File
+# Save as ~/.procwatch.yaml or specify with --config flag
+
+# ============================================================================
+# SCORING THRESHOLDS
+# ============================================================================
+
+# Minimum total score to flag a process as suspicious
+# Total score = heuristic_score + (ml_weight * ml_score)
+# Default: 3.0 (recommended range: 2.0-5.0)
+min_score: 3.0
+
+# CPU usage percentage threshold for "high CPU" heuristic
+# Processes using more than this percentage will get flagged
+# Default: 90.0 (range: 50.0-100.0)
+cpu_high: 90.0
+
+# Number of top suspicious processes to display in scan output
+# Default: 20
+topk: 20
+
+# Weight multiplier for ML anomaly score in total score calculation
+# Higher values make ML detection more influential
+# Default: 2.0 (recommended range: 1.0-3.0)
+ml_weight: 2.0
+
+# Use scikit-learn's IsolationForest instead of custom Z-score model
+# Requires scikit-learn to be installed
+# Default: false
+use_sklearn: false
+
+
+# ============================================================================
+# NETWORK MONITORING
+# ============================================================================
+
+# Comma-separated list of ports to watch for suspicious connections
+# Processes connecting to these ports will be flagged
+# Common backdoor/C2 ports: 3333, 4444, 5555, 6666, 7777, etc.
+ports: "3333,4444,5555,6666,7777,8888,9999,14444,31337,33333"
+
+
+# ============================================================================
+# HEURISTIC WEIGHTS
+# ============================================================================
+
+# Each heuristic contributes to the total score based on these weights
+# Higher weights = more suspicious
+# Set to 0 to disable a specific heuristic
+
+weights:
+  # Process is running from a deleted executable (very suspicious)
+  deleted_exe: 4
+  
+  # Process is running from memory file descriptor (fileless execution)
+  memfd_exe: 4
+  
+  # Process is running from /tmp, /var/tmp, or /dev/shm
+  tmp_exe: 3
+  
+  # Executable file is world-writable (potential tampering)
+  world_writable_exe: 2
+  
+  # Process has writable+executable memory regions (possible code injection)
+  wx_mem: 3
+  
+  # Process has empty command line (possible evasion)
+  empty_cmdline: 1
+  
+  # Command line is very short (< 10 chars, possible obfuscation)
+  short_cmdline: 1
+  
+  # Command line contains obfuscated/encoded content (base64, etc.)
+  obfuscated_cmdline: 2
+  
+  # Command line contains code execution patterns (eval, exec, etc.)
+  code_exec_cmdline: 1
+  
+  # Process name doesn't match argv[0] (possible masquerading)
+  name_argv_mismatch: 1
+  
+  # Process has unusual parent (e.g., network service spawning shell)
+  unusual_parent: 3
+  
+  # Process has LD_PRELOAD set (library injection)
+  ld_preload: 2
+  
+  # Process is being traced/debugged by another process
+  ptraced: 3
+  
+  # Process is consuming high CPU
+  high_cpu: 1
+  
+  # Process has no controlling terminal (uncommon for user processes)
+  no_tty: 3
+  
+  # Process is connected to a watched port (from ports list)
+  watched_port: 2
+  
+  # Process has many outbound network connections
+  many_conns: 1
+  
+  # Process has no executable path (kernel threads are filtered separately)
+  no_exe: 1
+
+
+# ============================================================================
+# WHITELIST
+# ============================================================================
+
+# Processes matching whitelist criteria get reduced scores
+# High-severity issues (score >= 5) are NOT reduced
+# Other issues get score reduced by 3 points
+
+whitelist:
+  # Exact process names to whitelist
+  names:
+    - systemd
+    - kthreadd
+    - kworker
+    - sshd
+    - cron
+    - bash
+    - zsh
+    - NetworkManager
+    - journald
+    - kdevtmpfs
+    - kauditd
+    - khungtaskd
+    - oom_reaper
+    - kcompactd0
+    - ksmd
+    - khugepaged
+    - watchdogd
+    - kswapd0
+    - ecryptfs-kthread
+    - dockerd
+    - containerd
+    - kubelet
+    - systemd-udevd
+    - systemd-logind
+    - dbus-daemon
+    - polkitd
+    - avahi-daemon
+    - cups-browsed
+  
+  # User IDs or usernames to whitelist
+  # Be careful: whitelisting root reduces detection of root-level threats
+  users:
+    # - root
+    # - "0"
+  
+  # Glob patterns for process names and executable paths
+  patterns:
+    # System binaries
+    - /usr/*
+    - /bin/*
+    - /sbin/*
+    - /lib/*
+    
+    # Systemd processes
+    - "(sd-pam)"
+    - "systemd-*"
+    
+    # Kernel threads
+    - "kworker*"
+    - "ksoftirqd*"
+    - "rcu*"
+    - "migration*"
+    - "idle_inject*"
+    - "cpuhp*"
+    - "pool_workqueue_release*"
+    - "irq/*"
+    - "scsi_eh_*"
+    - "scsi_tmf_*"
+    - "jbd2/*"
+    
+    # Desktop environment
+    - "/opt/google/chrome/*"
+    - "/opt/firefox/*"
+    - "/snap/*"
+    
+    # Development tools (use with caution)
+    # - "python*"
+    # - "node*"
+    # - "java*"
+  
+  # Executable SHA256 hashes to whitelist
+  # Use for specific trusted binaries
+  hashes:
+    # - "abc123..."
+  
+  # Exact executable paths to whitelist
+  paths:
+    # - "/usr/bin/trusted_tool"
+    # - "/opt/myapp/service"
+
+
+# ============================================================================
+# API SERVER CONFIGURATION (when using 'procwatch api' command)
+# ============================================================================
+
+# Note: These settings are passed via command line flags, not this config file
+# 
+# Usage:
+#   procwatch api --host 0.0.0.0 --port 8080 --config ~/.procwatch.yaml
+#
+# Available flags:
+#   --host HOST     Host to bind to (default: 0.0.0.0)
+#   --port PORT     Port to bind to (default: 8080)
+#   --config FILE   This config file
+#   --model FILE    ML model file path
+
+
+# ============================================================================
+# EXAMPLES
+# ============================================================================
+
+# Example 1: High Security - Strict Detection
+# min_score: 2.0
+# cpu_high: 70.0
+# ml_weight: 3.0
+# weights:
+#   deleted_exe: 5
+#   memfd_exe: 5
+#   tmp_exe: 4
+#   wx_mem: 4
+
+# Example 2: Low False Positives - Relaxed Detection
+# min_score: 5.0
+# cpu_high: 95.0
+# ml_weight: 1.5
+# weights:
+#   deleted_exe: 4
+#   tmp_exe: 2
+#   high_cpu: 0
+
+# Example 3: Development Environment - Minimal Detection
+# min_score: 6.0
+# weights:
+#   tmp_exe: 0
+#   short_cmdline: 0
+#   obfuscated_cmdline: 0
+# whitelist:
+#   patterns:
+#     - "python*"
+#     - "node*"
+#     - "/home/*"
+
+# Example 4: Server Environment - Focus on Network Activity
+# min_score: 3.0
+# ports: "22,80,443,3306,5432,6379,27017"
+# weights:
+#   watched_port: 3
+#   many_conns: 2
+#   unusual_parent: 4

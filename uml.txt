@@ -1,0 +1,62 @@
+
+@startuml
+skinparam BackgroundColor FFFFFF
+skinparam shadowing false
+skinparam RoundCorner 7
+
+skinparam collections {
+    BackgroundColor FF5F42
+    BorderColor 454645
+    FontColor 454645
+}
+
+skinparam queue {
+    BackgroundColor FF6347
+    BorderColor 454645
+    FontColor FFFFFF
+    BorderThickness 1.5
+}
+
+skinparam componentStyle uml2
+skinparam direction top to bottom
+title "procwatch - Clean Vertical Architecture Diagram"
+
+actor User
+
+'==================== DECLARE COMPONENTS FIRST ====================
+
+component "Command-Line Interface\n(cli.py)" as CLI
+component "Configuration Loader\n(config.py)" as Config
+component "Process Scanner\n(proc.py)" as Scanner
+component "Heuristic Scoring\n(heuristics.py)" as Heuristics
+component "Whitelist Engine\n(whitelist.py)" as WL
+component "ML Anomaly Engine\n(ml.py)" as ML
+component "Artifact Dumper\n(dump.py)" as Dumper
+
+database "/proc filesystem" as ProcFS
+file "config.yaml" as CFG
+file "model.json / model.joblib" as ModelFile
+
+'==================== NOW DRAW CONNECTIONS ========================
+
+User --> CLI : run scan/train
+CLI --> Config : load config
+Config --> CFG : read YAML
+
+CLI --> Scanner : start scan
+Scanner --> ProcFS : read process data
+
+Scanner --> Heuristics : rule score
+Scanner --> WL : whitelist check
+Scanner --> ML : anomaly score
+
+Heuristics --> Config
+WL --> Config
+
+CLI --> ML : train model
+ML --> ModelFile : save/load model
+
+Scanner --> Dumper : dump on alert
+Dumper --> ProcFS : extract artifacts
+
+@enduml
