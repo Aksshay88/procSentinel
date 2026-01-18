@@ -54,30 +54,7 @@ This will install the `procwatch` command-line tool.
 
 ## Usage
 
-Procwatch has three main commands: `scan`, `train`, and `api`.
-
-### REST API & Web UI
-
-Start the API server for programmatic access and web interface:
-
-```bash
-procwatch api
-```
-
-Then open `webui.html` in your browser for a modern web interface, or access the API directly:
-
-```bash
-# Get system stats
-curl http://localhost:8080/api/stats
-
-# Get suspicious processes
-curl http://localhost:8080/api/suspicious
-
-# Get all processes
-curl http://localhost:8080/api/processes
-```
-
-See [API_README.md](API_README.md) for complete API documentation.
+Procwatch has two main commands: `scan` and `train`.
 
 ### Scanning
 

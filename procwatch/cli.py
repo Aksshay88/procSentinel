@@ -194,10 +194,6 @@ def cmd_scan(args: argparse.Namespace) -> None:
         scan_once()
 
 
-def cmd_api(args: argparse.Namespace) -> None:
-    from .api import run_api_server
-    run_api_server(args.host, args.port, args.config, args.model)
-
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description="procwatch v3 - modular + ML")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -218,13 +214,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_scan.add_argument("--kill-on-alert", action="store_true")
     p_scan.add_argument("--dump", type=str, help="Dump artifacts directory")
     p_scan.set_defaults(func=cmd_scan)
-
-    p_api = sub.add_parser("api", help="Run REST API server")
-    p_api.add_argument("--host", type=str, default="0.0.0.0", help="Host to bind to")
-    p_api.add_argument("--port", type=int, default=8080, help="Port to bind to")
-    p_api.add_argument("--config", type=str, help="Config YAML")
-    p_api.add_argument("--model", type=str, help="Path to load model")
-    p_api.set_defaults(func=cmd_api)
 
     return ap
 
