@@ -47,6 +47,18 @@ const ProcessDetails: React.FC<ProcessDetailsProps> = ({ process, onClose }) => 
                 <label>Parent Process</label>
                 <span>{process.parent_name}</span>
               </div>
+              <div className="detail-item">
+                <label>Executable</label>
+                <span className="mono" style={{ wordBreak: 'break-all' }}>{process.exe || 'N/A'}</span>
+              </div>
+              <div className="detail-item">
+                <label>CWD</label>
+                <span className="mono" style={{ wordBreak: 'break-all' }}>{process.cwd || 'N/A'}</span>
+              </div>
+              <div className="detail-item">
+                <label>SHA256</label>
+                <span className="mono" style={{ wordBreak: 'break-all', fontSize: '0.8em' }}>{process.sha256 || 'N/A'}</span>
+              </div>
             </div>
           </div>
 
@@ -79,9 +91,9 @@ const ProcessDetails: React.FC<ProcessDetailsProps> = ({ process, onClose }) => 
                   <span>{process.cpu_percent.toFixed(1)}%</span>
                 </div>
                 <div className="progress-bar">
-                  <div 
-                    className="progress-fill" 
-                    style={{ 
+                  <div
+                    className="progress-fill"
+                    style={{
                       width: `${Math.min(process.cpu_percent, 100)}%`,
                       backgroundColor: process.cpu_percent > 80 ? '#ef4444' : process.cpu_percent > 50 ? '#eab308' : '#22c55e'
                     }}
@@ -90,17 +102,11 @@ const ProcessDetails: React.FC<ProcessDetailsProps> = ({ process, onClose }) => 
               </div>
               <div className="resource-item">
                 <div className="resource-header">
-                  <label>Memory</label>
-                  <span>{process.mem_mb.toFixed(1)} MB</span>
+                  <label>Connections</label>
+                  <span>{process.conns_outbound ?? 0}</span>
                 </div>
-                <div className="progress-bar">
-                  <div 
-                    className="progress-fill" 
-                    style={{ 
-                      width: `${Math.min((process.mem_mb / 1024) * 100, 100)}%`,
-                      backgroundColor: '#60a5fa'
-                    }}
-                  />
+                <div className="detail-item">
+                  <label style={{ fontSize: '0.8em', color: '#666' }}>Remote Ports: {(process.remote_ports || []).join(', ') || 'None'}</label>
                 </div>
               </div>
             </div>
@@ -113,12 +119,12 @@ const ProcessDetails: React.FC<ProcessDetailsProps> = ({ process, onClose }) => 
                 process.reasons.map((reason, index) => (
                   <div key={index} className="reason-item">
                     <span className="reason-score" style={{
-                      backgroundColor: reason.score >= 3 ? 'rgba(239, 68, 68, 0.2)' : 
-                                     reason.score >= 2 ? 'rgba(234, 179, 8, 0.2)' : 
-                                     'rgba(34, 197, 94, 0.2)',
-                      color: reason.score >= 3 ? '#ef4444' : 
-                            reason.score >= 2 ? '#eab308' : 
-                            '#22c55e'
+                      backgroundColor: reason.score >= 3 ? 'rgba(239, 68, 68, 0.2)' :
+                        reason.score >= 2 ? 'rgba(234, 179, 8, 0.2)' :
+                          'rgba(34, 197, 94, 0.2)',
+                      color: reason.score >= 3 ? '#ef4444' :
+                        reason.score >= 2 ? '#eab308' :
+                          '#22c55e'
                     }}>
                       {reason.score.toFixed(1)}
                     </span>

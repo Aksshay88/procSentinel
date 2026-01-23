@@ -25,17 +25,17 @@ const ProcessTable: React.FC<ProcessTableProps> = ({ processes, loading }) => {
   const sortedProcesses = [...processes].sort((a, b) => {
     const aVal = a[sortField]
     const bVal = b[sortField]
-    
+
     if (typeof aVal === 'number' && typeof bVal === 'number') {
       return sortOrder === 'asc' ? aVal - bVal : bVal - aVal
     }
-    
+
     if (typeof aVal === 'string' && typeof bVal === 'string') {
-      return sortOrder === 'asc' 
+      return sortOrder === 'asc'
         ? aVal.localeCompare(bVal)
         : bVal.localeCompare(aVal)
     }
-    
+
     return 0
   })
 
@@ -105,8 +105,8 @@ const ProcessTable: React.FC<ProcessTableProps> = ({ processes, loading }) => {
                 <th onClick={() => handleSort('cpu_percent')}>
                   CPU% {sortField === 'cpu_percent' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
-                <th onClick={() => handleSort('mem_mb')}>
-                  Memory {sortField === 'mem_mb' && (sortOrder === 'asc' ? '↑' : '↓')}
+                <th onClick={() => handleSort('conns_outbound')}>
+                  Connections {sortField === 'conns_outbound' && (sortOrder === 'asc' ? '↑' : '↓')}
                 </th>
                 <th>Status</th>
                 <th>Reasons</th>
@@ -114,7 +114,7 @@ const ProcessTable: React.FC<ProcessTableProps> = ({ processes, loading }) => {
             </thead>
             <tbody>
               {sortedProcesses.map((proc) => (
-                <tr 
+                <tr
                   key={proc.pid}
                   onClick={() => setSelectedProcess(proc)}
                   className="clickable"
@@ -129,7 +129,7 @@ const ProcessTable: React.FC<ProcessTableProps> = ({ processes, loading }) => {
                   <td>{proc.user}</td>
                   <td className="parent-name">{proc.parent_name}</td>
                   <td>{proc.cpu_percent.toFixed(1)}%</td>
-                  <td>{proc.mem_mb.toFixed(1)} MB</td>
+                  <td>{proc.conns_outbound ?? 0}</td>
                   <td>
                     <span className={`badge ${getStatusClass(proc.status)}`}>
                       {proc.status.toUpperCase()}
@@ -153,7 +153,7 @@ const ProcessTable: React.FC<ProcessTableProps> = ({ processes, loading }) => {
       </div>
 
       {selectedProcess && (
-        <ProcessDetails 
+        <ProcessDetails
           process={selectedProcess}
           onClose={() => setSelectedProcess(null)}
         />

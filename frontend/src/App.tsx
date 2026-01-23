@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import './App.css'
 // import Login from './components/Login'
 import Dashboard from './components/Dashboard'
@@ -43,7 +43,7 @@ function App() {
       {/* {!token ? (
         <Login onLogin={handleLogin} />
       ) : ( */}
-        <Dashboard token={token} username={username || ''} onLogout={handleLogout} />
+      <Dashboard token={token} username={username || ''} onLogout={handleLogout} />
       {/* )} */}
     </div>
   )

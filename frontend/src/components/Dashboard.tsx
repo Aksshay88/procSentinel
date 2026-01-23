@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import StatsCards from './StatsCards'
 import ProcessTable from './ProcessTable'
@@ -20,9 +20,14 @@ export interface ProcessData {
   heuristic_score: number
   ml_score: number
   cpu_percent: number
-  mem_mb: number
+  mem_mb?: number // Optional now as backend doesn't always send it
+  conns_outbound: number
+  remote_ports: number[]
   reasons: Array<{ score: number; reason: string }>
-  cmdline: string
+  cmdline: string | string[]
+  exe?: string
+  cwd?: string
+  sha256?: string
   status: 'normal' | 'warning' | 'critical'
 }
 
@@ -35,56 +40,71 @@ export interface StatsData {
   timestamp: string
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ token, username, onLogout }) => {
+type ViewMode = 'all' | 'suspicious'
+
+const Dashboard: React.FC<DashboardProps> = ({ username, onLogout }) => {
   const [processes, setProcesses] = useState<ProcessData[]>([])
   const [stats, setStats] = useState<StatsData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [autoRefresh, setAutoRefresh] = useState(true)
+  const [autoRefresh, setAutoRefresh] = useState(false)
   const [refreshInterval, setRefreshInterval] = useState(5)
 
+  // New state for filters
+  const [viewMode, setViewMode] = useState<ViewMode>('all')
+  const [minScore, setMinScore] = useState<number>(3.0)
+
   const api = axios.create({
-    baseURL: 'http://localhost:5001',
-    // Temporarily disable auth header to test UI
-    // headers: {
-    //   Authorization: `Bearer ${token}`
-    // }
+    baseURL: 'http://localhost:8080',
   })
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     setError('')
-    
+
     try {
+      // Determine which endpoint to call based on view mode
+      const processEndpoint = viewMode === 'suspicious'
+        ? `/api/suspicious?min_score=${minScore}`
+        : '/api/processes'
+
       const [processesRes, statsRes] = await Promise.all([
-        api.get('/api/processes'),
+        api.get(processEndpoint),
         api.get('/api/stats')
       ])
-      
-      setProcesses(processesRes.data.processes || [])
+
+      // Handle list response vs direct array? Backend seems to return list directly for some, dict for others?
+      // Checking backend code: 
+      // /api/processes -> returns list of dicts directly? No, wait.
+      // api_server.py: 
+      // return jsonify({'processes': findings ...}) for /api/processes?
+      // BUT typical simplified backend in procwatch/api.py (which is used by start_api.sh) returns LIST directly for get_all_processes??
+      // Let's re-read procwatch/api.py carefully.
+      // The APIHandler.do_GET -> self.send_json(processes) where processes = self.api.get_all_processes() (which returns a LIST)
+      // So it is a direct array. The previous frontend code expected { data: { processes: [] } } which matched api_server.py but NOT procwatch/api.py.
+      // Since `start_api.sh` runs `procwatch.py api` -> `procwatch/api.py`, we should expect a direct ARRAY.
+
+      const processData = Array.isArray(processesRes.data) ? processesRes.data : processesRes.data.processes || []
+      setProcesses(processData)
       setStats(statsRes.data)
     } catch (err: any) {
-      // Temporarily disable auto-logout for testing
-      // if (err.response?.status === 401) {
-      //   onLogout()
-      // } else {
-        setError(err.response?.data?.message || err.message || 'Failed to fetch data - check if backend is running on port 5001')
-      // }
+      console.error(err)
+      setError(err.response?.data?.message || err.message || 'Failed to fetch data. Ensure backend is running on port 8080.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [viewMode, minScore])
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [fetchData])
 
   useEffect(() => {
     if (autoRefresh) {
       const interval = setInterval(fetchData, refreshInterval * 1000)
       return () => clearInterval(interval)
     }
-  }, [autoRefresh, refreshInterval])
+  }, [autoRefresh, refreshInterval, fetchData])
 
   return (
     <div className="dashboard">
@@ -99,7 +119,7 @@ const Dashboard: React.FC<DashboardProps> = ({ token, username, onLogout }) => {
             </h1>
             <span className="subtitle">Process Monitoring Dashboard</span>
           </div>
-          
+
           <div className="header-right">
             <div className="user-info">
               <span className="username">{username}</span>
@@ -107,32 +127,61 @@ const Dashboard: React.FC<DashboardProps> = ({ token, username, onLogout }) => {
             </div>
           </div>
         </div>
-        
+
         <div className="controls">
-          <button onClick={fetchData} disabled={loading} className="refresh-btn">
-            {loading ? '🔄 Loading...' : '🔄 Refresh'}
-          </button>
-          
-          <label className="auto-refresh">
+          <div className="control-group">
+            <button
+              className={`view-btn ${viewMode === 'all' ? 'active' : ''}`}
+              onClick={() => setViewMode('all')}
+            >
+              🔄 All Processes
+            </button>
+            <button
+              className={`view-btn ${viewMode === 'suspicious' ? 'active' : ''}`}
+              onClick={() => setViewMode('suspicious')}
+            >
+              ⚠️ Suspicious Only
+            </button>
+          </div>
+
+          <div className="control-group">
+            <label htmlFor="min-score">Min Score:</label>
             <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
+              type="number"
+              id="min-score"
+              value={minScore}
+              step="0.5"
+              min="0"
+              onChange={(e) => setMinScore(parseFloat(e.target.value))}
+              className="score-input"
             />
-            Auto-refresh
-          </label>
-          
-          <select 
-            value={refreshInterval} 
-            onChange={(e) => setRefreshInterval(Number(e.target.value))}
-            disabled={!autoRefresh}
-            className="interval-select"
-          >
-            <option value={3}>3s</option>
-            <option value={5}>5s</option>
-            <option value={10}>10s</option>
-            <option value={30}>30s</option>
-          </select>
+          </div>
+
+          <div className="control-group right">
+            <button onClick={fetchData} disabled={loading} className="refresh-btn">
+              {loading ? '...' : 'Refresh'}
+            </button>
+
+            <label className="auto-refresh">
+              <input
+                type="checkbox"
+                checked={autoRefresh}
+                onChange={(e) => setAutoRefresh(e.target.checked)}
+              />
+              Auto-refresh
+            </label>
+
+            <select
+              value={refreshInterval}
+              onChange={(e) => setRefreshInterval(Number(e.target.value))}
+              disabled={!autoRefresh}
+              className="interval-select"
+            >
+              <option value={3}>3s</option>
+              <option value={5}>5s</option>
+              <option value={10}>10s</option>
+            </select>
+          </div>
         </div>
       </header>
 
