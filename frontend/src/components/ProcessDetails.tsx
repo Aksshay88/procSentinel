@@ -140,7 +140,11 @@ const ProcessDetails: React.FC<ProcessDetailsProps> = ({ process, onClose }) => 
           <div className="detail-section">
             <h3>Command Line</h3>
             <div className="cmdline-box">
-              <code>{process.cmdline || 'N/A'}</code>
+              <code>
+                {Array.isArray(process.cmdline)
+                  ? process.cmdline.join(' ')
+                  : (process.cmdline || 'N/A')}
+              </code>
             </div>
           </div>
         </div>
